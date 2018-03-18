@@ -1,4 +1,4 @@
-#Studiptroll - Experimenting with Selenium's browser automation
+# Studiptroll - Experimenting with Selenium's browser automation
 
 ## What the hell have I stumbled upon here?
 This project tries to combine the fun and power of Selenium with something useful, like automating Stud.IP's features.
