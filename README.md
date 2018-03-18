@@ -9,7 +9,11 @@ Checkout the latest version via git:
 
     git fetch http://github.com/ennoente/studiptroll.git
 
-Since this is Maven project you can simply compile to jar via
+and checkout the master branch via
+
+    git checkout master
+
+Since this is a Maven project you can simply compile to jar via
 
     mvn clean compile assembly:single
 
