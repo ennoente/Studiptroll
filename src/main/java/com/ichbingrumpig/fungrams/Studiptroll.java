@@ -1,13 +1,14 @@
 package com.ichbingrumpig.fungrams;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
-import java.io.Console;
-import java.io.File;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * This project tries to combine the fun of Selenium's browser automation with
@@ -15,7 +16,7 @@ import java.util.Map;
  *
  * Initially, the program asks for a username and password and logs into the Stud.IP
  * system of the University of Oldenburg (http://www.uni-oldenburg.de).
- * Once logged in, the driver navigates to the "Schwartes Brett" section.
+ * Once logged in, the driver navigates to the "Schwarzes Brett" section.
  *
  * @author Enno Thoma, March 2018
  * @version 1.0-SNAPSHOT
@@ -38,12 +39,29 @@ public class Studiptroll {
      * Closes and quits after arriving.
      */
     private Studiptroll() {
+        String username = "error";
+        char[] password = null;
+
         // Initialize Console object from the command line
         Console console = System.console();
 
-        // Ask user credentials
-        String username = console.readLine("Username: ");
-        char[] password = console.readPassword("Passwort: ");
+        if (console == null) {
+            System.out.println("Retrieving user data from configs file");
+            File configsFile = new File(System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "configs.properties");
+
+            try {
+                Properties props = new Properties();
+                props.load(new FileInputStream(configsFile));
+                username = (String) props.get("username");
+                password = props.get("password").toString().toCharArray();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            // Ask user credentials
+            username = console.readLine("Username: ");
+            password = console.readPassword("Passwort: ");
+        }
 
         // Initialize path of the chromedriver executable
         initializeDriverExecutable();
@@ -71,7 +89,16 @@ public class Studiptroll {
         driver.findElement(By.xpath("//li[@id='nav_schwarzesbrettplugin']")).click();
 
         // Some happy logging
-        System.out.println("Erfolgreich zur Webseite gekommen :)");
+        System.out.println("Erfolgreich zum Schwarzen Brett gekommen :)");
+
+        // Go to "Computer & Technik (Biete)" category
+        WebElement category = driver.findElement(By.xpath("//*[@id=\"layout_content\"]/ul[1]/li/a[text()[contains(.,\"Computer und Technik [Biete]\")]]"));
+        category.click();
+
+        // Count elements with class-attribute "unseen"
+        int count = driver.findElements(By.xpath("//*[@id=\"layout_content\"]/table/tbody/tr/td/a[@class='article unseen']")).size();
+
+        System.out.println("Number of Elements with class attribute equal to 'article unseen': " + count);
 
         // Cleanup
         driver.close();
