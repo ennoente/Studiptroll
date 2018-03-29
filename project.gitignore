@@ -1,2 +1,2 @@
 # Ignore the target output directory
-target
+/target/*
