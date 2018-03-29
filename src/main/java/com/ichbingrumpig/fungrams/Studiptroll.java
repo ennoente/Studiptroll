@@ -1,12 +1,18 @@
 package com.ichbingrumpig.fungrams;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
+import com.mashape.unirest.http.Headers;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
+import org.apache.http.cookie.Cookie;
 
-import java.io.*;
+import java.io.Console;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.HttpCookie;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -35,7 +41,8 @@ public class Studiptroll {
      * The heart of this Fungram!
      *
      * After asking for credentials, logs into the Stud.IP system of the University of
-     * Oldenburg and navigates to the "Schwarzes Brett"-section.
+     * Oldenburg.
+     * Once arrived, a time is asked (
      * Closes and quits after arriving.
      */
     private Studiptroll() {
@@ -63,45 +70,91 @@ public class Studiptroll {
             password = console.readPassword("Passwort: ");
         }
 
-        // Initialize path of the chromedriver executable
-        initializeDriverExecutable();
+        String httpRequest = "POST /plugins.php/uollayoutplugin/login?cancel_login=1 HTTP/1.1" + "\r\n" +
+                "Host: elearning.uni-oldenburg.de" + "\r\n" +
+                "Content-Type: application/x-www-form-urlencoded" + "\r\n" + "\r\n" +
+                "username=" + username + "&password=" + new String(password);
 
-        // Initialize the chromedriver options
-        ChromeOptions options = new ChromeOptions();
-        options.setHeadless(initializeHeadlessMode());
-        options.addArguments("--window-size=1920,1080");
+        String url = "https://elearning.uni-oldenburg.de/plugins.php/uollayoutplugin/login?cancel_login=1";
 
-        // Initialize the chrome driver
-        ChromeDriver driver = new ChromeDriver(options);
+        String bodyString = "username=" + username + "&password=" + new String(password);
 
-        // Navigate to Website
-        driver.get("http://www.uni-oldenburg.de");
+        try {
 
-        // Hover over the "studip"-button
-        driver.findElement(By.id("unilogin")).click();
 
-        // Log in
-        driver.findElement(By.id("username")).sendKeys(username);
-        driver.findElement(By.id("password")).sendKeys(new String(password));
-        driver.findElement(By.id("unilogin_submit")).click();
+            HttpResponse<String> response = Unirest.post(url)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .body(bodyString)
+                    .asString();
 
-        // To "Schwarzes Brett"
-        driver.findElement(By.xpath("//li[@id='nav_schwarzesbrettplugin']")).click();
+            Headers headers = response.getHeaders();
+            System.out.println("Location-Header:" + headers.get("Location"));
 
-        // Some happy logging
-        System.out.println("Erfolgreich zum Schwarzen Brett gekommen :)");
 
-        // Go to "Computer & Technik (Biete)" category
-        WebElement category = driver.findElement(By.xpath("//*[@id=\"layout_content\"]/ul[1]/li/a[text()[contains(.,\"Computer und Technik [Biete]\")]]"));
-        category.click();
+            List<String> cookieHeaders = headers.get("Set-Cookie");
+            for (String s : cookieHeaders) {
+                System.out.println("Cookie-Header:" + s);
+            }
 
-        // Count elements with class-attribute "unseen"
-        int count = driver.findElements(By.xpath("//*[@id=\"layout_content\"]/table/tbody/tr/td/a[@class='article unseen']")).size();
+            System.out.println("Response-Body: '" + response.getBody() + "'");
 
-        System.out.println("Number of Elements with class attribute equal to 'article unseen': " + count);
+            System.out.println("__________");
+            System.out.println("Sending response now...");
 
-        // Cleanup
-        driver.close();
+
+            String vLocation = headers.getFirst("Location");
+
+            List<HttpCookie> cookie = HttpCookie.parse(cookieHeaders.get(0));
+            String name = cookie.get(0).getName();
+            String value = cookie.get(0).getValue();
+            String cookiesString = name + "=" + value;
+            for (int i = 1; i < cookieHeaders.size(); i++) {
+                cookie = HttpCookie.parse(cookieHeaders.get(i));
+                name = cookie.get(0).getName();
+                value = cookie.get(0).getValue();
+
+                cookiesString = cookiesString.concat("; " + name + "=" + value);
+            }
+            System.out.println("Request Cookies-Value-String: '" + cookiesString + "'");
+
+            HttpResponse<String> response2 = Unirest.post(vLocation)
+                    .header("Cookie", cookiesString)
+                    .asString();
+
+            System.out.println("Response2-Headers: '" + response2.getHeaders().toString() + "'");
+            System.out.println("Response2-Body: '" + response2.getBody() + "'");
+
+            Headers headers2 = response2.getHeaders();
+            String vLocationAfterResponse2 = headers2.getFirst("Location");
+            System.out.println("Response2-Location: '" + vLocationAfterResponse2 + "'");
+            System.out.println("Response2-SetCookie-Headers: '" + headers2.get("Set-Cookie") + "'");
+
+            System.out.println("______________________");
+            System.out.println("Sending response now...");
+
+            String url3 = "https://elearning.uni-oldenburg.de/dispatch.php/start";
+            HttpResponse<String> response3 = Unirest.get(url3)
+                    .header("Cookie", cookiesString)
+                    .asString();
+
+            System.out.println(response3.getHeaders());
+            //System.out.println("Response3-Body: '" + response3.getBody() + "'");
+
+
+            System.out.println("______________________________");
+            System.out.println("Going to 'Planer' now...");
+
+            HttpResponse<String> planerResponse = Unirest.get("https://elearning.uni-oldenburg.de/plugins.php/planerplugin/planer")
+                    .asString();
+
+            System.out.println("Planer-Response-Body: '" + planerResponse.getBody() + "'");
+
+
+
+
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -121,7 +174,7 @@ public class Studiptroll {
      * @return The HashMap parsed from the arguments
      */
     private static Map<String, String> argsToMap(String[] args) {
-        Map<String, String> map = new HashMap<String, String>();
+        Map<String, String> map = new HashMap<>();
         for (String s : args) {
             String[] parts = s.split("=");
             map.put(parts[0], parts[1]);
